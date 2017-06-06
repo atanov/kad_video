@@ -1,97 +1,28 @@
 #ifndef HT_BUCKET_H
 #define HT_BUCKET_H
+
 #include <iostream>
 #include <st_basic.h>
-
-#define PING 0
-#define STORE 1
-#define FIND_NODE 2
-#define FIND_VALUE 3
-using namespace std;
-
-//const uint8_t K=3;
-
-const uint8_t ID_size=32;
-const uint8_t k_size=4;
-
-struct node_data_item{
-
-public:
-    int Key;
-    char *Value;
-
-    node_data_item(){Key=0; Value="OK";}  //default
-
-    node_data_item(int k, char *v)
-    {
-        Key = k;
-        Value = v;
-    }
-    int key(){
-        return Key;
-    }
-
-    char *value(){
-        return Value;
-    }
-
-};
-
-struct bucket_item{
-
-private: int ID;
-    char *ip;
-    int Udp_port;
-
-public:
-    bucket_item(int id_init, char *ip_init, int udp_port_init)
-    {
-        ID = id_init;
-        ip = ip_init;
-        Udp_port=udp_port_init;
-    }
-
-    bucket_item()  //default
-    {
-        ID = -1;
-        ip = NULL;
-        Udp_port=0;
-    }
-
-
-    int key() {return ID;}
-    char *value() {return ip;}
-    int udp_port() {return Udp_port;}
-};
-
-
-struct node_msg {
- struct Src{
-     int src_id;
-     char *src_ip;
- };
-
- Src src;
- int dst;
- int command;
- node_data_item *value;
-};
-
+#include <my_stack.h>
+#include <ht_items.h>
+#include <my_sort.h>
 
 //---------------------------------   main class -----------------------------------
 
 template <class Item, typename Key>
 class HT{
 typedef uint16_t uint;
+typedef HT<Item,Key> node_hash_table;
 
 private:
         ST <node_data_item,Key> node_data;   //node data structure
+        Stack <Key> s;    //stack for recursive requestes
         Item *nullItem;
         Key node_ID;
         //service variables
         Item *K_items;   //node items array
         node_data_item answer_item;
-
+        node_data_item find_node_item;
 
     struct node {
         Item *item; node* next;
@@ -156,7 +87,7 @@ private:
 
 public:
 
-    HT(int ID):node_data(100){
+    HT(int ID):node_data(100),s(100){
         //node_data.node_data(100);  //init node data structure
         K_items=new Item[k_size];
 
@@ -169,7 +100,8 @@ public:
     }
 
     int count(){ return N; }
-    Key id(){return node_ID;}
+    //Key
+    int id(){return (int) node_ID;}
 
     void node_data_print(){
         node_data.print();
@@ -194,6 +126,11 @@ public:
         if (N[i]<k_size) {heads[i] = new node(x, heads[i]); N[i]++;}
       }
 
+    void insertF(Item *x){
+        cout << "insertF: " << x->key() <<"; ";
+        update_HT(x->key(),x->value(),x->udp_port());
+    }
+
     void update_HT(Key k,char *ip,int ip_port){
         node *found = search(k);
         Item *found_item;
@@ -205,9 +142,136 @@ public:
         insert(found_item);
         };
     }
+//-------  Transport send functions ----------------------
 
-//-------  Transport functions ----------------------
-    node_msg process_query(node_msg *msg)
+     int node_sender(int c, node_data_item *v, int rec_id, int *list_size, bucket_item **nodes_list){
+
+        bucket_item *search_rec = search_item(rec_id);
+        node_hash_table *rec;
+
+        if (search_rec) rec=(node_hash_table *)search_rec->value();    //get link by id from buckets
+            else {
+            cout << "command "<< c <<" error, node " << rec_id <<" has not found\n";
+            return 0;
+        }
+
+
+        node_msg msg_send={{id(),(char *)this},rec->id(),c,v};
+        node_msg msg_rec=rec->process_query(&msg_send);  //send msg to selected node in DHT
+
+        int i,id;
+        //analyze answer
+        switch (c)
+        {
+        case PING:
+            if (!strcmp(msg_rec.value->value(),"OK")){return 1;}
+            break;
+
+        case STORE:
+        if (!strcmp(msg_rec.value->value(),"OK")){return 1;}
+            break;
+
+        case FIND_NODE:
+        if (!strcmp(msg_rec.value->value(),"NOT_FOUND")){return 0;}
+            cout << "Node id= " << rec_id <<".Closest nodes for id = " << msg_send.value->key() << ":\n";
+
+                //for (i=0, id=0;(id>=0)&&(i<k_size); i++)
+                i=0; id=(((bucket_item *)msg_rec.value->value())[i]).key();
+                while((id>=0)&&(i<k_size))
+                {
+                    cout << "id = " << id <<"; value = " << (((bucket_item *)msg_rec.value->value())[i]).value() <<"\n";
+                    i++;
+                    id=(((bucket_item *)msg_rec.value->value())[i]).key();
+                }
+
+                *list_size=i;
+                *nodes_list=(bucket_item *)msg_rec.value->value();
+
+            return 1;
+            break;
+
+        case FIND_VALUE:
+            if (!strcmp(msg_rec.value->value(),"NOT_FOUND")){return 0;}
+            if (msg_rec.value->key()==v->key()) {
+                    cout << "Found id = " << msg_rec.value->key() << "; value = " << msg_rec.value->value() << " \n";
+                    return 1;}
+            else {cout << "Closest nodes for id = " << msg_send.value->key() << ":\n";
+            for (int i=0,id=0;(id>=0)&&(i<k_size);i++){
+                id=(((bucket_item *)msg_rec.value->value())[i]).key();
+                cout << "id = " << id <<"; value = " << (((bucket_item *)msg_rec.value->value())[i]).value() <<"\n";
+            }
+            }
+
+            return 1;
+            break;
+
+        default:
+            break;
+        }
+
+        return 0;
+    }
+
+    bucket_item *process_stack(int id_to_found){
+
+        while(!(s.empty())){
+         int cur_id=s.pop();
+
+         if (node_sender(PING,NULL,cur_id,NULL,NULL)) cout << "PING OK\n";
+         else cout <<"PING FAILED\n";
+
+         //find_node
+         int list_size;
+         bucket_item *nodes_list;
+
+         find_node_item.Key=id_to_found; find_node_item.Value="FIND_NODE";    //find node with id=id_to_found;
+         if(node_sender(FIND_NODE,&find_node_item,cur_id,&list_size,&(nodes_list))) cout << "FIND NODE OK\n";
+         else cout << "FIND NODE FAILED\n";
+
+         struct metr_struct{
+         int metr;
+         int id;
+         };
+
+         metr_struct metr[k_size];
+         for (int i=0; i<k_size;i++) metr[i].metr=0xFFFF;
+         int stop_processing=0;
+         bucket_item *cur_link;
+
+         //insert found nodes into [send] buckets and add to stack
+         for (int i=0;i<list_size;i++) {
+            cur_link=&(nodes_list[i]);
+             insertF(cur_link);
+             if (cur_link->key()==id()) continue;  //loop protect
+             //find metric
+             metr[i].metr=metric((cur_link->key()),id_to_found); metr[i].id=cur_link->key();
+             if (metr[i].metr==0) {stop_processing=1;cout << id_to_found << " is found\n";}
+            }
+
+         if (stop_processing) return cur_link;
+
+         quicksort(metr,0,k_size-1,&metr_struct::metr);  //sort struct array with key=metr;
+         //for (int i=0; i<k_size; i++) cout << "metr [" << i<<"] = " << metr[i].metr << " , " << metr[i].id <<";\n";
+
+         for (int i=0; i<a_size;i++){
+         if (metr[i].metr <0xFFFF){
+           if (!(s.push(metr[i].id)))   cout << "Stack overflowed !!!!\n";
+          }
+         }
+        }
+
+        return NULL;
+     }
+
+    void node_search(int first_query, int id_to_found)
+    {
+        s.push(first_query);
+        process_stack(id_to_found);
+    }
+
+//-------  Transport receive functions ----------------------
+
+ node_msg process_query(node_msg *msg)
     {   int this_id=(int)id();
         char *value_found;
         node_msg ans={{this_id,(char *)this},0,0,NULL};
@@ -316,7 +380,7 @@ public:
 
         while (cur_node) {
             t[N_nodes++]=*(cur_node->item);
-            cout << "Node " << N_nodes << ": id = " << cur_node->item->key() << " ;\n";
+            //cout << "Node " << N_nodes << ": id = " << cur_node->item->key() << " ;\n";
             cur_node=cur_node->next;
             if (N_nodes==k_size) return N_nodes;
         }

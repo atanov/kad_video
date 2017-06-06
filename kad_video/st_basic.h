@@ -1,3 +1,5 @@
+/*  hash table basic class */
+
 #ifndef ST_BASIC_H
 #define ST_BASIC_H
 
