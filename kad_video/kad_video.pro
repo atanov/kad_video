@@ -1,7 +1,11 @@
+QT += core
+QT += network
+QT -= gui
+
 TEMPLATE = app
 CONFIG += console c++11
 CONFIG -= app_bundle
-CONFIG -= qt
+#CONFIG -= qt
 
 SOURCES += main.cpp
 
@@ -11,3 +15,5 @@ HEADERS += \
     my_stack.h \
     my_sort.h \
     ht_items.h
+
+DEFINES += QT_DEPRECATED_WARNINGS

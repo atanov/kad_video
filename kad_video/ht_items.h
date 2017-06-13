@@ -18,7 +18,7 @@ public:
     int Key;
     char *Value;
 
-    node_data_item(){Key=0; Value="OK";}  //default
+    node_data_item(){Key=0; Value= new char[80]; strcpy(Value,"OK");}  //default
 
     node_data_item(int k, char *v)
     {
@@ -37,11 +37,11 @@ public:
 
 struct bucket_item{
 
-private: int ID;
-    char *ip;
-    int Udp_port;
-
 public:
+     int ID;
+     char *ip;
+     int Udp_port;
+
     bucket_item(int id_init, char *ip_init, int udp_port_init)
     {
         ID = id_init;
@@ -52,7 +52,7 @@ public:
     bucket_item()  //default
     {
         ID = -1;
-        ip = NULL;
+        ip = new char[80]; strcpy(ip,"0.0.0.0");
         Udp_port=0;
     }
 
@@ -67,6 +67,7 @@ struct node_msg {
  struct Src{
      int src_id;
      char *src_ip;
+     int src_port;
  };
 
  Src src;
