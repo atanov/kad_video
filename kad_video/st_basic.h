@@ -31,7 +31,7 @@ private:
     Item *printR(link t)
     {
         if (t == NULL) return NULL;
-        cout << t->item->key() << " ; " << t->item->value() << "\n";
+        cout << t->item->key() << " ; " << t->item->size << "\n";
         return printR(t->next);
     }
 
