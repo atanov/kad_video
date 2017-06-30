@@ -74,22 +74,23 @@ if(data.contains("FIND_DATA")) {
 }
 if(data.contains("PLAY")) {
 QTime t_total;
-
+    t_total.start();
     int dst;
     int space=data.indexOf(' ');
     if (space!=-1){
     left=data.left(space);
     right=data.mid(space+1);
     dst=right.toInt();
+    int last_dst=dst;
 
 
 
     for (int i=1;i<1105;i++) {   //number of files from manifest
-        t_total.start();
-        bucket_item *cur_item=t->value_search(dst,i*100);  //get first packet from file 1
 
-            if(cur_item==NULL) {cout <<"SEARCH FAILED"; return;}
-             cout << "searched for " << t_total.elapsed() << endl;
+        bucket_item *cur_item=t->value_search(last_dst,i*100);  //get first packet from file 1
+        last_dst=t->last_dst;
+
+            if(cur_item==NULL) {cout <<"SEARCH FAILED"; cout << "searched for " << t_total.elapsed() << endl;return;}
 
         //       store packet in local data repository
              node_msg msg_send;
@@ -115,8 +116,8 @@ QTime t_total;
         size_t cur_file_size=UDP_PSIZE;
 
         for (int j=1; j< pack_num; j++){
-        t_total.start();
-        cur_item=t->value_search(dst,i*100+j);
+
+        cur_item=t->value_search(last_dst,i*100+j);
         if(cur_item==NULL) {cout << "SEARCH FAILED";return;}
         //------------------       store packet in local data repository
              node_msg msg_send;
@@ -137,14 +138,16 @@ QTime t_total;
         //--------------------------------
         memcpy (cur_file+cur_file_size, cur_item->ip +2,cur_item->Udp_port-2);
         cur_file_size+=cur_item->Udp_port-2;
-        cout << "searched for " << t_total.elapsed() << endl;
+
 
 #ifdef DEBUG_OUTPUT
         cout << "pack size = " << cur_item->Udp_port-2 << endl;
         cout << "pack num = " << j << endl;
 #endif
+
         }
         HT::save_to_disk (cur_file,cur_file_size,i);
+
     }
    }
   }

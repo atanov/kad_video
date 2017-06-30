@@ -13,8 +13,9 @@
 #include <QTime>
 #include <mutex>
 
-//#define DEBUG_OUTPUT
+#define DEBUG_OUTPUT
 #define TIME_OUT 2000   //in ms
+#define SLEEP_TIME 500  //in us
 const size_t UDP_PSIZE=50000;
 typedef my_fifo<QByteArray> udp_fifo;
 extern mutex fifo_mutex;
@@ -136,6 +137,7 @@ public:
 
     }
 
+    int last_dst;
     udp_fifo *fifo;
     int count(){ return N; }
     //Key
@@ -379,7 +381,9 @@ public:
             //t.restart();
             //!!!!!!!!!  first check if value is returned
             if (msg_rec.value->key()==v->key()) {
-                    #ifdef DEBUG_OUTPUT
+
+            last_dst=msg_rec.src.src_id;
+#ifdef DEBUG_OUTPUT
                 cout << "Found id = " << msg_rec.value->key() << "; value = " <<"\n";// msg_rec.value->value() << " \n";
 #endif
 
@@ -744,12 +748,12 @@ public:
     int Find_value(Key v, Item *t,char **value_found, int *vsize, int src_id){  //node_data_item
         //first check value
         if((node_connected_id==src_id)|(node_connected_id==-1)){
-            node_connected_id=src_id;
-        node_data_item *node_data_search=node_data.search(v);
+           node_data_item *node_data_search=node_data.search(v);
        // QByteArray debug_data(node_data_search->Value,node_data_search->size);
         if (node_data_search) {*(value_found)=node_data_search->value();
                                *(vsize)=node_data_search->size;
-                               return -1;
+                                node_connected_id=src_id;    //only if have found
+                                return -1;
                               }
         }
         else{
@@ -827,7 +831,7 @@ if (from_where == 1){  //from stack
 
 else if (from_where==2) {   //from main loop
     //if (fifo->empty()) {msg_rec.command=-1; return msg_rec;}
-    while(fifo->empty()) {Sleep(1);}
+    while(fifo->empty()) {Sleep(1);}  //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
     fifo_mutex.lock();
     buffer=fifo->get();
     fifo_mutex.unlock();

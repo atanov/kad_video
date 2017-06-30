@@ -17,6 +17,7 @@
 #include <my_fifo.h>
 #include <command_processors.cpp>
 
+
 using namespace std;
 mutex fifo_mutex;
 
@@ -123,6 +124,9 @@ DWORD WINAPI Udp_Listen(CONST LPVOID Param) {
     quint16 senderPort;
 
     while (1){Sleep(1);
+
+          //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
+
           if (param->udp->hasPendingDatagrams()){
           //SuspendThread(param->side_thread);   //pause main program, until reading messages in FIFO;
           fifo_mutex.lock();
@@ -136,6 +140,7 @@ DWORD WINAPI Udp_Listen(CONST LPVOID Param) {
     }
   }
 }
+
 
 DWORD WINAPI main_thread(CONST LPVOID Param) {
   th_params *param=(th_params *)Param;
