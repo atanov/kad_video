@@ -22,8 +22,9 @@ using namespace std;
 mutex fifo_mutex;
 
 const int MAX_FILES=1105;
+const int MAX_PACKETS=11105;
 const int THIS_ID=1;
-
+int got_files=0;
 //struct node_msg {
 // struct Src{
 //     int src_id;
@@ -62,15 +63,12 @@ struct file_list{
 };
 
 
-int load_files(char *name_base, file_list **list)
-{    int N=0;
+int load_files(char *name_base, file_list **list, int init_N)
+{    int N=init_N;
      char *full_name=new char[255];
      QFile *f= new QFile();
 
-     *list = new file_list[MAX_FILES];
-     for (int i=0; i<MAX_FILES;i++)  {(*list)[i].id=-1; (*list)[i].value=NULL;}
-
-     for (int i=0; i<MAX_FILES;i++){   //<MAX_FILES
+     for (int i=got_files; i<MAX_FILES;i++){   //<MAX_FILES
       strcpy(full_name,name_base);
       char num[5];
       sprintf(num,"%05i", i+1);
@@ -79,7 +77,7 @@ int load_files(char *name_base, file_list **list)
 
       f->setFileName(full_name);
       if (f->open(QIODevice::ReadOnly)) cout << full_name <<" file opened succesfully\n";
-      else {cout << full_name<<" file opening error\n"; return N;}
+      else {cout << full_name<<" file opening error\n"; got_files=i; return N;}
       int fsize=f->size();
       char *data_buf = (char *)malloc(fsize);
       if (f->read(data_buf,fsize)<1) cout << "read error\n";
@@ -113,6 +111,7 @@ int load_files(char *name_base, file_list **list)
       }
 
       delete full_name;
+      delete f;
       return N;
 }
 
@@ -141,26 +140,15 @@ DWORD WINAPI Udp_Listen(CONST LPVOID Param) {
   }
 }
 
+void store_flist(file_list *flist, int flist_size, int start, node_hash_table *t){
+    node_msg msg_send;
+    node_data_item msg_send_value;
+    char srcip[80];
+    msg_send.src.src_ip=srcip;   //char * initialization
+    msg_send.value=&msg_send_value;
+    node_msg msg_rec;
 
-DWORD WINAPI main_thread(CONST LPVOID Param) {
-  th_params *param=(th_params *)Param;
-
-  node_msg msg_send;
-  node_data_item msg_send_value;
-  char srcip[80];
-  msg_send.src.src_ip=srcip;   //char * initialization
-  msg_send.value=&msg_send_value;
-
-  node_msg msg_rec;
-  node_hash_table node(param->node_id, param->node_ip, param->node_port,param->udp, param->tst_var);
-    cout << "node created. thread message \n";
-
-    if (param->node_id==0) {      //add files to node data list
-
-    file_list *flist;
-    int flist_size = load_files("C:\\projects\\p2p_video\\video\\chunk-stream0-",&flist);
-
-    for (int i=0;i<flist_size;i++){
+    for (int i=start;i<flist_size;i++){
       strcpy(msg_send.src.src_ip,"127.0.0.1");
       msg_send.value->Value=flist[i].value;
       msg_send.value->Key=flist[i].id;
@@ -169,15 +157,61 @@ DWORD WINAPI main_thread(CONST LPVOID Param) {
 
       msg_send.command=STORE;
       msg_send.src.src_id=0;
-      msg_send.src.src_port=param->node_port;
+      msg_send.src.src_port=t->my_port();   //node_port
       msg_send.dst=0;
-      msg_rec=node.process_query(&msg_send);
+      msg_rec=t->process_query(&msg_send);
     }
+}
+
+int file_exist(int number,char *name_base){
+    char *full_name=new char[255];
+    QFile *f= new QFile();
+    int res=0;
+
+     strcpy(full_name,name_base);
+     char num[5];
+     sprintf(num,"%05i", number);
+     strcat(full_name,num);
+     strcat (full_name,".m4s");
+
+     f->setFileName(full_name);
+     res=f->exists();
+
+    delete f;
+    delete full_name;
+    return res;
+}
+
+DWORD WINAPI main_thread(CONST LPVOID Param) {
+  th_params *param=(th_params *)Param;
+  char *base_name="C:\\Programs\\ffmpeg-3.2.4-win64-static\\bin\\chunk-stream0-";
+  //"C:\\projects\\p2p_video\\video\\chunk-stream0-"
+  node_hash_table node(param->node_id, param->node_ip, param->node_port,param->udp, param->tst_var);
+    cout << "node created. thread message \n";
+    file_list *flist;
+    int flist_size;
+    if (param->node_id==0) {      //add files to node data list
+
+
+
+    flist = new file_list[MAX_PACKETS];
+    for (int i=0; i<MAX_PACKETS;i++)  {(flist)[i].id=-1; (flist)[i].value=NULL;}
+    flist_size = load_files(base_name,&flist,0);
+    store_flist(flist,flist_size,0,&node);
     }
 
     //QByteArray buffer;
     while (1){
-    msg_rec= node.udp_listen(2);  //2 = from_main loop
+    node.udp_listen(2);  //2 = from_main loop
+    //check for files, add more
+   if (param->node_id==0){
+    if (file_exist(got_files+1,base_name)){
+        //Sleep(1000);
+        int size_prev=flist_size;
+        flist_size = load_files(base_name,&flist,size_prev);
+        store_flist(flist,flist_size,size_prev,&node);
+    }
+   }
    }
   //ExitThread(0);
 }
@@ -228,11 +262,11 @@ int main(int argc, char* argv[])
     udp_param.udp=my_udp;
     udp_param.tst_var=FIFO;
 
-    hThread=CreateThread(NULL,2097152,&main_thread,&param,CREATE_SUSPENDED,&thread_id);// stack_size = 4MB
+    hThread=CreateThread(NULL,2*2097152,&main_thread,&param,CREATE_SUSPENDED,&thread_id);// stack_size = 4MB
     if (hThread==NULL) {cout << "thread create error\n"; return 0;}
 
     udp_param.side_thread=hThread;
-    udp_Thread=CreateThread(NULL,2097152,&Udp_Listen,&udp_param,CREATE_SUSPENDED,&thread_id2);// stack_size = 4MB
+    udp_Thread=CreateThread(NULL,2*2097152,&Udp_Listen,&udp_param,CREATE_SUSPENDED,&thread_id2);// stack_size = 4MB
     if (udp_Thread==NULL) {cout << "thread create error\n"; return 0;}
 
 

@@ -31,6 +31,15 @@ template <class Item, typename Key> void HT<Item,Key>::process_command(char *d, 
 QString data(d);
 QString left,right;
 
+int last_dst;
+int pack_num;
+
+node_msg msg_send;
+node_data_item msg_send_value;
+msg_send.value=&msg_send_value;
+bucket_item *cur_item;
+size_t cur_file_size;
+
 if(data.contains("PRINT_DATA")) {t->node_data_print();}
 
 if(data.contains("ITEM")) {
@@ -39,7 +48,8 @@ if(data.contains("ITEM")) {
     if (space!=-1){
     v=(data.mid(space+1)).toInt();
     node_data_item *s_v=t->search_data(v);
-    if (s_v) cout << s_v->Key << " " << s_v->size << endl;
+    if (s_v) cout << s_v->Key << " " << s_v->size << " ;packets number = " << int(s_v->Value[1])<<endl;
+
     }
 }
 
@@ -76,26 +86,28 @@ if(data.contains("PLAY")) {
 QTime t_total;
     t_total.start();
     int dst;
+
     int space=data.indexOf(' ');
     if (space!=-1){
     left=data.left(space);
     right=data.mid(space+1);
     dst=right.toInt();
-    int last_dst=dst;
-
-
+    last_dst=dst;
 
     for (int i=1;i<1105;i++) {   //number of files from manifest
 
-        bucket_item *cur_item=t->value_search(last_dst,i*100);  //get first packet from file 1
+        cur_item=t->value_search(last_dst,i*100);  //get first packet from file 1
         last_dst=t->last_dst;
 
-            if(cur_item==NULL) {cout <<"SEARCH FAILED"; cout << "searched for " << t_total.elapsed() << endl;return;}
+#ifdef CHECK_FOR_UPDATES
+        while(cur_item==NULL) {cout <<"SEARCH FAILED, try one more time...";
+            cur_item=t->value_search(last_dst,i*100);
+        }
+#else
+    if(cur_item==NULL) {cout <<"SEARCH FAILED"; cout << "searched for " << t_total.elapsed() << endl;return;}
+#endif
 
         //       store packet in local data repository
-             node_msg msg_send;
-             node_data_item msg_send_value;
-             msg_send.value=&msg_send_value;
 
                strcpy(msg_send.src.src_ip,"127.0.0.1");
                msg_send.value->Value=cur_item->ip;   //= value , see node_sender DANGER
@@ -110,20 +122,27 @@ QTime t_total;
 
         //--------------------------------
 
-        int pack_num = (int)cur_item->ip[1];  //save first packet, get value from header
+        pack_num = (int)cur_item->ip[1];  //save first packet, get value from header
         char *cur_file=(char *)malloc(pack_num*UDP_PSIZE);
         memcpy (cur_file, cur_item->ip +2,UDP_PSIZE);
-        size_t cur_file_size=UDP_PSIZE;
+        cur_file_size=UDP_PSIZE;
 
         for (int j=1; j< pack_num; j++){
 
+#ifdef CHECK_FOR_UPDATES
+        cur_item=NULL;
+        while (cur_item==NULL) { cout << "check for updates \n";
+            cur_item=t->value_search(last_dst,i*100+j);
+            cout << "packets number = " << pack_num << endl;
+            cout << "number = " << i << endl;
+            //system("pause");
+        }
+#else
         cur_item=t->value_search(last_dst,i*100+j);
         if(cur_item==NULL) {cout << "SEARCH FAILED";return;}
+#endif
         //------------------       store packet in local data repository
-             node_msg msg_send;
-             node_data_item msg_send_value;
-             msg_send.value=&msg_send_value;
-
+               pack_num = (int)cur_item->ip[1];  //re-get packets from header
                strcpy(msg_send.src.src_ip,"127.0.0.1");
                msg_send.value->Value=cur_item->ip;   //= value , see node_sender DANGER
                msg_send.value->Key=cur_item->ID;   //   = key

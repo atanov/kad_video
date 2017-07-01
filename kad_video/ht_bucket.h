@@ -16,6 +16,7 @@
 #define DEBUG_OUTPUT
 #define TIME_OUT 2000   //in ms
 #define SLEEP_TIME 500  //in us
+#define CHECK_FOR_UPDATES
 const size_t UDP_PSIZE=50000;
 typedef my_fifo<QByteArray> udp_fifo;
 extern mutex fifo_mutex;
@@ -65,9 +66,14 @@ private:
 
     Item *searchR_item(link t, Key v)
     {
-        if (!t) return NULL;
+        /*if (!t) return NULL;
         if (t->item->key() == v) return t->item;
-        return searchR_item(t->next, v);
+        return searchR_item(t->next, v);*/
+        link cur=t;
+        while(cur!=NULL) {
+            if (cur->item->key() == v) return cur->item;
+            cur=cur->next;
+        }
     }
 
     Item *printR(link t)
