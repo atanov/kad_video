@@ -130,7 +130,7 @@ public:
         M=ID_size;
         heads = new link[M];
         myself.ID=m_ID;
-        myself.ip=new char[80];
+        //myself.ip=new char[80];
         strcpy(myself.ip,m_ip);
         myself.Udp_port=m_port;
         send_time= new QTime;
@@ -418,6 +418,8 @@ public:
                     {
                         kdata_answer=right; space=kdata_answer.indexOf(';'); left=kdata_answer.left(space); right=kdata_answer.mid(space+1);
                         strcpy(cur_ip,(left.toStdString()).c_str());
+                        if ((cur_ip[0]=='O')&(cur_ip[1]=='K'))
+                            {cout << "garbage collected\n"; return 0;}   // garbage answer
 
                         kdata_answer=right; space=kdata_answer.indexOf(';'); left=kdata_answer.left(space); right=kdata_answer.mid(space+1);
                         udp_port=left.toInt();
@@ -615,7 +617,7 @@ public:
             if(msg->dst==this_id){
                 ans.src.src_id=myself.ID;
                 //ans.src.src_ip=(char *)this;
-                ans.src.src_ip=myself.ip;
+                strcpy(ans.src.src_ip,myself.ip);
                 ans.src.src_port=myself.Udp_port;
 
                 ans.dst=msg->src.src_id;
@@ -634,7 +636,7 @@ public:
                 //answer ok
                 ans.src.src_id=this_id;
                 //ans.src.src_ip=(char *)this;
-                ans.src.src_ip=myself.ip;
+                strcpy(ans.src.src_ip,myself.ip);
                 ans.src.src_port=myself.Udp_port;
 
                 ans.dst=msg->src.src_id;
@@ -660,7 +662,7 @@ public:
                 //answer ok
                 ans.src.src_id=this_id;
                 //ans.src.src_ip=(char *)this;
-                ans.src.src_ip=myself.ip;
+                strcpy(ans.src.src_ip,myself.ip);
                 ans.src.src_port=myself.Udp_port;
 
                 ans.dst=msg->src.src_id;
@@ -690,7 +692,7 @@ public:
                 //answer ok
                 ans.src.src_id=this_id;
                 //ans.src.src_ip=(char *)this;
-                ans.src.src_ip=myself.ip;
+                strcpy(ans.src.src_ip,myself.ip);
                 ans.src.src_port=myself.Udp_port;
 
                 ans.dst=msg->src.src_id;

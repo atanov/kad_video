@@ -23,7 +23,7 @@ mutex fifo_mutex;
 
 const int MAX_FILES=1105;
 const int MAX_PACKETS=11105;
-const int THIS_ID=1;
+const int THIS_ID=4;
 int got_files=0;
 //struct node_msg {
 // struct Src{
@@ -219,7 +219,7 @@ DWORD WINAPI main_thread(CONST LPVOID Param) {
 int main(int argc, char* argv[])
 {//-------------  new version --------------
     int arg_id=THIS_ID,arg_port=1236,arg_port_rec=1236;
-    QString arg_ipS("127.0.0.1"), arg_ip2S("127.0.0.1");
+    QString arg_ipS("159.93.74.137"), arg_ip2S("159.93.74.137");
 
 
     if (argc>=3) {
