@@ -832,7 +832,7 @@ if (from_where == 1){  //from stack
     {
         if (send_time->elapsed()>TIME_OUT) {
             cout << "node_sender timeout, next node \n"; msg_rec.command=-1;return msg_rec;}
-        if (fifo->empty()) continue;
+        if (fifo->empty()) {Sleep(1);continue;}
         fifo_mutex.lock();
         buffer=fifo->get();
         fifo_mutex.unlock();
