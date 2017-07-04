@@ -12,6 +12,7 @@
 #include <my_sort.h>
 #include <QTime>
 #include <mutex>
+#include <unistd.h>
 
 #define DEBUG_OUTPUT
 #define TIME_OUT 50   //in ms
@@ -281,7 +282,6 @@ public:
      int node_sender(int c, node_data_item *v, int rec_id, int *list_size, bucket_item **nodes_list){
         //t.restart();
         bucket_item *search_rec = search_item(rec_id);
-        QByteArray buildquery;
 
         if (!search_rec)     //get link by id from buckets
           {
@@ -297,9 +297,7 @@ public:
         msg_send.dst=search_rec->key();
         msg_send.command=c;
         msg_send.value=v;
-        buildquery=build_query(&msg_send);
-        qDebug() << "node_sender:   " <<buildquery << endl;
-        udp->writeDatagram(buildquery ,QHostAddress(QString(search_rec->value())), search_rec->udp_port());
+        udp->writeDatagram(build_query(&msg_send) ,QHostAddress(QString(search_rec->value())), search_rec->udp_port());
         ////node_msg msg_rec=rec->process_query(&msg_send);  //send msg to selected node in DHT
 
 
@@ -324,9 +322,9 @@ public:
         msg_rec.value=&msg_rec_value;
 
         msg_rec=udp_listen(1,msg_send.command);   // 1 = from_stack;
-//////////////
-        if (msg_rec.command==-1) return 0; //timout, try another time;
-        if (msg_rec.command!=msg_send.command) return 0;  //garbage answer, return;
+   //////////////
+           if (msg_rec.command==-1) return 0; //timout, try another time;
+           if (msg_rec.command!=msg_send.command) return 0; //garbage answer, return;
 
         QString kdata_answer;
         QString left,right;
@@ -516,83 +514,83 @@ public:
 
 
     bucket_item *process_stack_value(int id_to_found){
-        asked_list asked;
-        asked.insert(id());
-        while(!(s.empty())){
-         int cur_id=s.pop();
+            asked_list asked;
+            asked.insert(id());
+            while(!(s.empty())){
+             int cur_id=s.pop();
 
-         //t.restart();
-         int k=0;
-         for (k=0; k<3;k++) {
-         if (node_sender(PING,&answer_item,cur_id,NULL,NULL)) {
-#ifdef DEBUG_OUTPUT
-             cout << "PING to:"<< cur_id <<" OK\n";
+             //t.restart();
+             int k=0;
+             for (k=0; k<3;k++) {
+             if (node_sender(PING,&answer_item,cur_id,NULL,NULL)) {
+    #ifdef DEBUG_OUTPUT
+                 cout << "PING to:"<< cur_id <<" OK\n";
+                 break;
+             #endif
+             }
+             }
+
+             //else {cout <<"PING FAILED\n";return NULL;}
+             if (k==3) {cout <<"PING FAILED\n";continue;}
+            // qDebug("Time elapsed: %d ms", t.elapsed());
+
+             //find_node
+             //t.restart();
+             int list_size;
+             bucket_item *nodes_list;
+
+             find_node_item.Key=id_to_found; find_node_item.Value="FIND_VALUE";    //find node with id=id_to_found;
+         for (k=0; k<3; k++){
+             if(node_sender(FIND_VALUE,&find_node_item,cur_id,&list_size,&(nodes_list)))
+             {
+                 #ifdef DEBUG_OUTPUT
+                 cout << "FIND VALUE OK\n";
+    #endif
              break;
-         #endif
+             }
          }
-         }
+             //else {cout << "FIND VALUE FAILED\n"; return NULL;}
+            if (k==3) {cout << "FIND VALUE FAILED\n"; continue;}
 
-         //else {cout <<"PING FAILED\n";return NULL;}
-         if (k==3) {cout <<"PING FAILED\n";continue;}
-        // qDebug("Time elapsed: %d ms", t.elapsed());
+             if (list_size==777) {//qDebug("Time elapsed: %d ms", t.elapsed());
+                 cout << id_to_found << " is found\n"; while(!s.empty()) s.pop();return nodes_list;}   //flush stack & exit
 
-         //find_node
-         //t.restart();
-         int list_size;
-         bucket_item *nodes_list;
+             struct metr_struct{
+             int metr;
+             int id;
+             };
 
-         find_node_item.Key=id_to_found; find_node_item.Value="FIND_VALUE";    //find node with id=id_to_found;
-     for (k=0; k<3; k++){
-         if(node_sender(FIND_VALUE,&find_node_item,cur_id,&list_size,&(nodes_list)))
-         {
-             #ifdef DEBUG_OUTPUT
-             cout << "FIND VALUE OK\n";
-#endif
-         break;
-         }
-     }
-         //else {cout << "FIND VALUE FAILED\n"; return NULL;}
-        if (k==3) {cout << "FIND VALUE FAILED\n"; continue;}
+             metr_struct metr[k_size];
+             for (int i=0; i<k_size;i++) metr[i].metr=0xFFFF;
+             int stop_processing=0;
+             bucket_item *cur_link;
 
-         if (list_size==777) {//qDebug("Time elapsed: %d ms", t.elapsed());
-             cout << id_to_found << " is found\n"; while(!s.empty()) s.pop();return nodes_list;}   //flush stack & exit
+             //insert found nodes into [send] buckets and add to stack
+             for (int i=0;i<list_size;i++) {
+                cur_link=&(nodes_list[i]);
 
-         struct metr_struct{
-         int metr;
-         int id;
-         };
+                //if (cur_link->key()==id()) continue;  //loop protect
+              if (asked.search(cur_link->key())) continue;  //loop protect
+                //if(insertF(cur_link)) continue;  //loop protect
 
-         metr_struct metr[k_size];
-         for (int i=0; i<k_size;i++) metr[i].metr=0xFFFF;
-         int stop_processing=0;
-         bucket_item *cur_link;
+              insertF(cur_link);
+              asked.insert(cur_link->key());
+                //find metric
+                 metr[i].metr=metric((cur_link->key()),id_to_found); metr[i].id=cur_link->key();
+               }
 
-         //insert found nodes into [send] buckets and add to stack
-         for (int i=0;i<list_size;i++) {
-            cur_link=&(nodes_list[i]);
+             quicksort(metr,0,k_size-1,&metr_struct::metr);  //sort struct array with key=metr;
+             //for (int i=0; i<k_size; i++) cout << "metr [" << i<<"] = " << metr[i].metr << " , " << metr[i].id <<";\n";
 
-            //if (cur_link->key()==id()) continue;  //loop protect
-          if (asked.search(cur_link->key())) continue;  //loop protect
-            //if(insertF(cur_link)) continue;  //loop protect
+             for (int i=0; i<a_size;i++){
+             if (metr[i].metr <0xFFFF){
+               if (!(s.push(metr[i].id)))   cout << "Stack overflowed !!!!\n";
+              }
+             }
+            }
 
-          insertF(cur_link);
-          asked.insert(cur_link->key());
-            //find metric
-             metr[i].metr=metric((cur_link->key()),id_to_found); metr[i].id=cur_link->key();
-           }
-
-         quicksort(metr,0,k_size-1,&metr_struct::metr);  //sort struct array with key=metr;
-         //for (int i=0; i<k_size; i++) cout << "metr [" << i<<"] = " << metr[i].metr << " , " << metr[i].id <<";\n";
-
-         for (int i=0; i<a_size;i++){
-         if (metr[i].metr <0xFFFF){
-           if (!(s.push(metr[i].id)))   cout << "Stack overflowed !!!!\n";
-          }
-         }
-        }
-
-        return NULL;
-     }
+            return NULL;
+    }
 
 
     int node_search(int first_query, int id_to_found)
@@ -663,9 +661,13 @@ public:
                 if(Find_node(msg->value->key(),K_items)) {
                     strcpy(answer_item.Value,"");
                     for (int i=0; i<k_size;i++){
-                    strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    sprintf(k_items_buf,"%d",(K_items[i]).ID);
+                    //strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     strcat(answer_item.Value,(K_items[i]).ip); strcat(answer_item.Value,";");
-                    strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+                    sprintf(k_items_buf,"%d",(K_items[i]).Udp_port);
+                    //strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     }
 
                 answer_item.Key=msg->command;}   // replace here (char *)K_items -> (char *)str="K_items[0],....,K_items[1]"; replace processor
@@ -693,9 +695,12 @@ public:
                 if(fvalue>0) {
                     strcpy(answer_item.Value,"");
                     for (int i=0; i<k_size;i++){
-                    strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    sprintf(k_items_buf,"%d",(K_items[i]).ID);
+                    //strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     strcat(answer_item.Value,(K_items[i]).ip); strcat(answer_item.Value,";");
-                    strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+                    sprintf(k_items_buf,"%d",(K_items[i]).Udp_port);
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     }//answer_item.Value=(char *)K_items;
                     answer_item.Key=msg->command;}
                 else if(fvalue<0) {answer_item.Value=value_found;answer_item.Key=msg->value->key(); answer_item.size=value_size;}
@@ -818,66 +823,66 @@ public:
         return N_nodes;
     }
 
-node_msg udp_listen (int from_where, int send_command=0){
+    node_msg udp_listen (int from_where, int send_command=0){
 
-    QByteArray buffer;
+        QByteArray buffer;
 
-    node_msg msg_rec;
-    msg_rec.command=-2;  // if shit happened;
-    node_msg msg_send;
+        node_msg msg_rec;
+        msg_rec.command=-2;  // if shit happened;
+        node_msg msg_send;
 
-if (from_where == 1){  //from stack
-    send_time->start();
-    while (1)
-    {
-        if (send_time->elapsed()>TIME_OUT) {
-            cout << "node_sender timeout, next node \n"; msg_rec.command=-1;return msg_rec;}
-        if (fifo->empty()) {Sleep(1);continue;}
+    if (from_where == 1){  //from stack
+        send_time->start();
+        while (1)
+        {
+            if (send_time->elapsed()>TIME_OUT) {
+                cout << "node_sender timeout, next node \n"; msg_rec.command=-1;return msg_rec;}
+            if (fifo->empty()) {continue;usleep(1000);}
+            fifo_mutex.lock();
+            buffer=fifo->get();
+            fifo_mutex.unlock();
+
+            if (process_answer(buffer.data(),buffer.size(),&msg_rec))
+                            {if (msg_rec.command==send_command)return msg_rec; else continue;}  //if answer
+
+            if(process_message(buffer.data(),&msg_send)) {  //if another DHT command
+             msg_rec=process_query(&msg_send);
+             udp->writeDatagram(build_answer(&msg_rec) ,QHostAddress(QString(msg_send.src.src_ip)), msg_send.src.src_port);
+        #ifdef DEBUG_OUTPUT
+             cout << "got from stack DHT query " << msg_rec.command << " ; from   id = " << msg_send.src.src_id << " to id = " << msg_rec.src.src_id << endl;
+        #endif
+             }
+
+       }
+      }
+
+    else if (from_where==2) {   //from main loop
+        //if (fifo->empty()) {msg_rec.command=-1; return msg_rec;}
+        while(fifo->empty()) {usleep(1000);}  //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
         fifo_mutex.lock();
         buffer=fifo->get();
         fifo_mutex.unlock();
-
-        if (process_answer(buffer.data(),buffer.size(),&msg_rec))
-                        {if (msg_rec.command==send_command)return msg_rec; else continue;}  //if answer
-
-        if(process_message(buffer.data(),&msg_send)) {  //if another DHT command
+         if(process_message(buffer.data(),&msg_send)) {  //DHT command
          msg_rec=process_query(&msg_send);
          udp->writeDatagram(build_answer(&msg_rec) ,QHostAddress(QString(msg_send.src.src_ip)), msg_send.src.src_port);
     #ifdef DEBUG_OUTPUT
-         cout << "got from stack DHT query " << msg_rec.command << " ; from   id = " << msg_send.src.src_id << " to id = " << msg_rec.src.src_id << endl;
+          cout << "got DHT query " << msg_send.command << " ; src = " << msg_send.src.src_id << endl;
     #endif
          }
 
-   }
-  }
+         else {     //console command
+    #ifdef DEBUG_OUTPUT
+          cout << "got command \n" << buffer.data() << endl;
+    #endif
 
-else if (from_where==2) {   //from main loop
-    //if (fifo->empty()) {msg_rec.command=-1; return msg_rec;}
-    while(fifo->empty()) {Sleep(1);}  //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
-    fifo_mutex.lock();
-    buffer=fifo->get();
-    fifo_mutex.unlock();
-     if(process_message(buffer.data(),&msg_send)) {  //DHT command
-     msg_rec=process_query(&msg_send);
-     udp->writeDatagram(build_answer(&msg_rec) ,QHostAddress(QString(msg_send.src.src_ip)), msg_send.src.src_port);
-#ifdef DEBUG_OUTPUT
-      cout << "got DHT query " << msg_send.command << " ; src = " << msg_send.src.src_id << endl;
-#endif
-     }
-
-     else {     //console command
-#ifdef DEBUG_OUTPUT
-      cout << "got command \n" << buffer.data() << endl;
-#endif
-
-        process_command(buffer.data(),this);  //or process command
+            process_command(buffer.data(),this);  //or process command
+        msg_rec.command=-1;
+        }
+        return msg_rec;
+       }
     msg_rec.command=-1;
-    }
     return msg_rec;
-   }
-msg_rec.command=-1;
-return msg_rec;
-}
+    }
 
 QByteArray build_answer(node_msg *msg)
 {

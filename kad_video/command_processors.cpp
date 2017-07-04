@@ -3,7 +3,7 @@
 template <class Item, typename Key> int HT<Item,Key>::save_to_disk(char *data, int size, int key)
     {
         char *filename= new char[80];
-        strcpy(filename,"C:\\projects\\p2p_video\\output\\chunk-stream0-");
+        strcpy(filename,"/home/user/data/p2p_output/chunk-stream0-");
         char num[5];
         sprintf(num,"%05i", key);
         strcat(filename,num);
