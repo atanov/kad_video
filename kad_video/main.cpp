@@ -23,7 +23,7 @@ mutex fifo_mutex;
 
 const int MAX_FILES=1105;
 const int MAX_PACKETS=11105;
-const int THIS_ID=4;
+const int THIS_ID=3;
 int got_files=0;
 //struct node_msg {
 // struct Src{

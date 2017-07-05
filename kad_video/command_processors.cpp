@@ -110,7 +110,8 @@ QTime t_total;
         //       store packet in local data repository
 
                strcpy(msg_send.src.src_ip,"127.0.0.1");
-               msg_send.value->Value=cur_item->ip;   //= value , see node_sender DANGER
+               msg_send.value->Value=new char[cur_item->Udp_port];
+               memcpy(msg_send.value->Value,cur_item->ip,cur_item->Udp_port);   //= value , see node_sender DANGER
                msg_send.value->Key=cur_item->ID;   //   = key
                msg_send.value->size=cur_item->Udp_port;   // = size, here size !=0, in ordinary STORE size=0;
 

@@ -846,6 +846,7 @@ if (from_where == 1){  //from stack
 
         if(process_message(buffer.data(),&msg_send)) {  //if another DHT command
          msg_rec=process_query(&msg_send);
+         cout << "msg_rec . id =  "  << msg_rec.src.src_id  << " ; " << msg_rec.src.src_ip << endl;
          udp->writeDatagram(build_answer(&msg_rec) ,QHostAddress(QString(msg_send.src.src_ip)), msg_send.src.src_port);
     #ifdef DEBUG_OUTPUT
          cout << "got from stack DHT query " << msg_rec.command << " ; from   id = " << msg_send.src.src_id << " to id = " << msg_rec.src.src_id << endl;
@@ -863,6 +864,7 @@ else if (from_where==2) {   //from main loop
     fifo_mutex.unlock();
      if(process_message(buffer.data(),&msg_send)) {  //DHT command
      msg_rec=process_query(&msg_send);
+     cout << "msg_rec . id =  "  << msg_rec.src.src_id  << " ; " << msg_rec.src.src_ip << endl;
      udp->writeDatagram(build_answer(&msg_rec) ,QHostAddress(QString(msg_send.src.src_ip)), msg_send.src.src_port);
 #ifdef DEBUG_OUTPUT
       cout << "got DHT query " << msg_send.command << " ; src = " << msg_send.src.src_id << endl;
