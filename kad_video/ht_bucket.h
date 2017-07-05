@@ -39,6 +39,7 @@ private:
         //service variables
         Item *K_items;   //node items array
         node_data_item answer_item;
+        node_data_item answer_ping_item;
         node_data_item find_node_item;
         QUdpSocket *udp;
         QTime *send_time;
@@ -298,7 +299,10 @@ public:
         msg_send.command=c;
         msg_send.value=v;
         buildquery=build_query(&msg_send);
-        qDebug() << "node_sender:   " <<buildquery << endl;
+#ifdef DEBUG_OUTPUT
+     //   qDebug() << "node_sender:   " <<buildquery << endl;
+#endif
+
         udp->writeDatagram(buildquery ,QHostAddress(QString(search_rec->value())), search_rec->udp_port());
         ////node_msg msg_rec=rec->process_query(&msg_send);  //send msg to selected node in DHT
 
@@ -524,11 +528,11 @@ public:
          //t.restart();
          int k=0;
          for (k=0; k<3;k++) {
-         if (node_sender(PING,&answer_item,cur_id,NULL,NULL)) {
+         if (node_sender(PING,&answer_ping_item,cur_id,NULL,NULL)) {
 #ifdef DEBUG_OUTPUT
              cout << "PING to:"<< cur_id <<" OK\n";
+        #endif
              break;
-         #endif
          }
          }
 
