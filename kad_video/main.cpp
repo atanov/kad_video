@@ -23,7 +23,7 @@ mutex fifo_mutex;
 
 const int MAX_FILES=1105;
 const int MAX_PACKETS=11105;
-const int THIS_ID=3;
+const int THIS_ID=0;
 int got_files=0;
 //struct node_msg {
 // struct Src{
@@ -95,7 +95,7 @@ int load_files(char *name_base, file_list **list, int init_N)
         (cur_packet[j])[1]=iter_num;
         memcpy (cur_packet[j]+2,data_buf+j*UDP_PSIZE,UDP_PSIZE);   //data
         (*list)[N].value=cur_packet[j];
-        (*list)[N].id=(i+1)*100+j;    //replace on hash
+        (*list)[N].id=(i+1)*1000+j;    //replace on hash
         (*list)[N].size=UDP_PSIZE+2;    //is used only on transmit
         N++;
        }
@@ -104,7 +104,7 @@ int load_files(char *name_base, file_list **list, int init_N)
       memcpy (cur_packet[iter_num-1]+2,data_buf+(iter_num-1)*UDP_PSIZE,fsize-(iter_num-1)*UDP_PSIZE);
 
       (*list)[N].value=cur_packet[iter_num-1];
-      (*list)[N].id=(iter_num-1)+(i+1)*100;    //replace on hash
+      (*list)[N].id=(iter_num-1)+(i+1)*1000;    //replace on hash
       (*list)[N].size=fsize-(iter_num-1)*UDP_PSIZE + 2;   //+ header_size
       N++;
       f->close();

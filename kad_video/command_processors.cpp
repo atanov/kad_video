@@ -96,12 +96,12 @@ QTime t_total;
 
     for (int i=1;i<1105;i++) {   //number of files from manifest
 
-        cur_item=t->value_search(last_dst,i*100);  //get first packet from file 1
+        cur_item=t->value_search(last_dst,i*1000);  //get first packet from file 1
         last_dst=t->last_dst;
 
 #ifdef CHECK_FOR_UPDATES
         while(cur_item==NULL) {cout <<"SEARCH FAILED, try one more time...";
-            cur_item=t->value_search(last_dst,i*100);
+            cur_item=t->value_search(last_dst,i*1000);
         }
 #else
     if(cur_item==NULL) {cout <<"SEARCH FAILED"; cout << "searched for " << t_total.elapsed() << endl;return;}
@@ -110,8 +110,9 @@ QTime t_total;
         //       store packet in local data repository
 
                strcpy(msg_send.src.src_ip,"127.0.0.1");
-               msg_send.value->Value=new char[cur_item->Udp_port];
-               memcpy(msg_send.value->Value,cur_item->ip,cur_item->Udp_port);   //= value , see node_sender DANGER
+               //msg_send.value->Value=new char[cur_item->Udp_port];
+               //memcpy(msg_send.value->Value,cur_item->ip,cur_item->Udp_port);
+               msg_send.value->Value=cur_item->ip;   //= value , see node_sender DANGER
                msg_send.value->Key=cur_item->ID;   //   = key
                msg_send.value->size=cur_item->Udp_port;   // = size, here size !=0, in ordinary STORE size=0;
 
@@ -125,26 +126,28 @@ QTime t_total;
 
         pack_num = (int)cur_item->ip[1];  //save first packet, get value from header
         char *cur_file=(char *)malloc(pack_num*UDP_PSIZE);
-        memcpy (cur_file, cur_item->ip +2,UDP_PSIZE);
-        cur_file_size=UDP_PSIZE;
+        memcpy (cur_file, cur_item->ip +2,cur_item->Udp_port-2);  //UDP_SIZE
+        cur_file_size=cur_item->Udp_port-2;  //UDP_SIZE
 
         for (int j=1; j< pack_num; j++){
 
 #ifdef CHECK_FOR_UPDATES
         cur_item=NULL;
         while (cur_item==NULL) { cout << "check for updates \n";
-            cur_item=t->value_search(last_dst,i*100+j);
+            cur_item=t->value_search(last_dst,i*1000+j);
             cout << "packets number = " << pack_num << endl;
             cout << "number = " << i << endl;
             //system("pause");
         }
 #else
-        cur_item=t->value_search(last_dst,i*100+j);
+        cur_item=t->value_search(last_dst,i*1000+j);
         if(cur_item==NULL) {cout << "SEARCH FAILED";return;}
 #endif
         //------------------       store packet in local data repository
                pack_num = (int)cur_item->ip[1];  //re-get packets from header
                strcpy(msg_send.src.src_ip,"127.0.0.1");
+               //msg_send.value->Value=new char[cur_item->Udp_port];
+               //memcpy(msg_send.value->Value,cur_item->ip,cur_item->Udp_port);
                msg_send.value->Value=cur_item->ip;   //= value , see node_sender DANGER
                msg_send.value->Key=cur_item->ID;   //   = key
                msg_send.value->size=cur_item->Udp_port;   // = size, here size !=0, in ordinary STORE size=0;

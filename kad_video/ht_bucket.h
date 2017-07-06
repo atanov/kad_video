@@ -1,3 +1,4 @@
+
 #ifndef HT_BUCKET_H
 #define HT_BUCKET_H
 
@@ -17,6 +18,7 @@
 #define TIME_OUT 50   //in ms
 #define SLEEP_TIME 500  //in us
 #define CHECK_FOR_UPDATES
+char *global_debug;
 const size_t UDP_PSIZE=50000;
 typedef my_fifo<QByteArray> udp_fifo;
 extern mutex fifo_mutex;
@@ -38,6 +40,7 @@ private:
         Item myself;
         //service variables
         Item *K_items;   //node items array
+        Item *K_items_value;   //node items array
         node_data_item answer_item;
         node_data_item answer_ping_item;
         node_data_item find_node_item;
@@ -125,6 +128,7 @@ public:
     HT(int m_ID, const char *m_ip, int m_port, QUdpSocket *m_udp, udp_fifo *m_fifo):node_data(100),s(100){
         //node_data.node_data(100);  //init node data structure
         K_items=new Item[k_size];
+        K_items_value=new Item[k_size];
         udp=m_udp;
         fifo=m_fifo;
 
@@ -283,7 +287,7 @@ public:
         //t.restart();
         bucket_item *search_rec = search_item(rec_id);
         QByteArray buildquery;
-
+        global_debug=search_rec->ip;
         if (!search_rec)     //get link by id from buckets
           {
             cout << "command "<< c <<" error, node " << rec_id <<" has not found\n";
@@ -402,19 +406,22 @@ public:
 #endif
 
                     //*******  DANGER !!! *************************
-                    K_items[0].ID=msg_rec.value->key();   //return data item as k_bucket item with ip=value;
-                    K_items[0].ip=msg_rec.value->value();
-                    K_items[0].Udp_port=msg_rec.value->size;
+                    K_items_value[0].ID=msg_rec.value->key();   //return data item as k_bucket item with ip=value;
+                    K_items_value[0].ip=msg_rec.value->value();
+                    K_items_value[0].Udp_port=msg_rec.value->size;
 
                     //************************************************
                     *list_size=777;
-                    *nodes_list=K_items;
+                    *nodes_list=K_items_value;
                     //qDebug () << "time for FIND_VALUE processing " << t.elapsed() << endl;
                     return 1;}
             else if (!strcmp(c_answer,"NOT_FOUND")){return 0;}
             else {
                 #ifdef DEBUG_OUTPUT
-                 cout << "Node id= " << rec_id << endl; //".Closest nodes for id = " << msg_send.value->key() << ":\n";
+                cout <<"Command = " << msg_rec.command << " Packet size = " << msg_rec.value->size <<endl;
+                cout << "Node id= " << rec_id << endl; //".Closest nodes for id = " << msg_send.value->key() << ":\n";
+                if (msg_rec.value->size>100)
+                       {cout << "alert"  <<endl;return 0;}
 #endif
                     //parse string here
                     kdata_answer=QString(msg_rec.value->Value);
@@ -434,7 +441,7 @@ public:
 #ifdef DEBUG_OUTPUT
                         cout << "id = " << id <<"; value = " <<  cur_ip <<"\n";  //(((bucket_item *)msg_rec.value->value())[i]).value()
 #endif
-                        K_items[i].ID=id; strcpy(K_items[i].ip,cur_ip);K_items[i].Udp_port=udp_port;
+                        K_items_value[i].ID=id; strcpy(K_items_value[i].ip,cur_ip);K_items_value[i].Udp_port=udp_port;
                         i++;
 
                         kdata_answer=right; space=kdata_answer.indexOf(';'); left=kdata_answer.left(space); right=kdata_answer.mid(space+1);
@@ -442,7 +449,7 @@ public:
                     }
 
                     *list_size=i;
-                    *nodes_list=K_items;
+                    *nodes_list=K_items_value;
             }
 
             return 1;
