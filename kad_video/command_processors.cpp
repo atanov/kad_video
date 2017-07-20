@@ -3,7 +3,7 @@
 template <class Item, typename Key> int HT<Item,Key>::save_to_disk(char *data, int size, int key)
     {
         char *filename= new char[80];
-        strcpy(filename,"C:\\projects\\p2p_video\\output\\chunk-stream0-");
+        strcpy(filename,"C:\\projects\\dash_palyer\\public\\output\\chunk-stream0-");
         char num[5];
         sprintf(num,"%05i", key);
         strcat(filename,num);
@@ -85,7 +85,7 @@ if(data.contains("FIND_DATA")) {
 if(data.contains("PLAY")) {
 QTime t_total;
     t_total.start();
-    int dst;
+    int dst=-1;
 
     int space=data.indexOf(' ');
     if (space!=-1){
@@ -93,6 +93,7 @@ QTime t_total;
     right=data.mid(space+1);
     dst=right.toInt();
     last_dst=dst;
+    t->last_dst=dst;
 
     for (int i=1;i<1105;i++) {   //number of files from manifest
 
@@ -288,4 +289,3 @@ template <class Item, typename Key> int HT<Item,Key>::process_message(char *d,no
     //cout << d << " processed \n";
     return 0;
 }
-

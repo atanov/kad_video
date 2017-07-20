@@ -9,7 +9,8 @@
 // 5) make normal UDP listen
 
 
-#include <windows.h>
+//#include <windows.h>
+#include <thread>
 #include <iostream>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,7 @@ mutex fifo_mutex;
 const int MAX_FILES=1105;
 const int MAX_PACKETS=11105;
 const int THIS_ID=0;
+
 int got_files=0;
 //struct node_msg {
 // struct Src{
@@ -49,7 +51,7 @@ struct th_params{
     int node_port;
     int port_rec;
     udp_fifo *tst_var;
-    HANDLE side_thread;
+    thread side_thread;
 
     th_params(){
         node_ip=new char[80];
@@ -115,15 +117,15 @@ int load_files(char *name_base, file_list **list, int init_N)
       return N;
 }
 
-DWORD WINAPI Udp_Listen(CONST LPVOID Param) {
+void Udp_Listen(void *Param) {
     th_params *param=(th_params *)Param;
     udp_fifo *fifo=param->tst_var;
     QByteArray buffer;
     QHostAddress sender;
     quint16 senderPort;
 
-    while (1){Sleep(1);
-
+    while (1){//Sleep(1);
+            usleep(1000);
           //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
 
           if (param->udp->hasPendingDatagrams()){
@@ -182,10 +184,11 @@ int file_exist(int number,char *name_base){
     return res;
 }
 
-DWORD WINAPI main_thread(CONST LPVOID Param) {
+void main_thread(void *Param) {
   th_params *param=(th_params *)Param;
   char *base_name="C:\\Programs\\ffmpeg-3.2.4-win64-static\\bin\\chunk-stream0-";
-  //"C:\\projects\\p2p_video\\video\\chunk-stream0-"
+  //"/home/user/data/p2p/chunk-stream0-";
+
   node_hash_table node(param->node_id, param->node_ip, param->node_port,param->udp, param->tst_var);
     cout << "node created. thread message \n";
     file_list *flist;
@@ -219,7 +222,7 @@ DWORD WINAPI main_thread(CONST LPVOID Param) {
 int main(int argc, char* argv[])
 {//-------------  new version --------------
     int arg_id=THIS_ID,arg_port=1236,arg_port_rec=1236;
-    QString arg_ipS("159.93.74.137"), arg_ip2S("159.93.74.137");
+    QString arg_ipS("127.0.0.1"), arg_ip2S("127.0.0.1");
 
 
     if (argc>=3) {
@@ -245,8 +248,8 @@ int main(int argc, char* argv[])
     my_udp->bind(QHostAddress(arg_ipS),arg_port);
     udp_fifo *FIFO=new udp_fifo;
 
-    DWORD thread_id,thread_id2;
-    HANDLE hThread, udp_Thread;
+    //DWORD thread_id,thread_id2;
+    //HANDLE hThread, udp_Thread;
 
     th_params param;
     th_params udp_param;
@@ -262,24 +265,25 @@ int main(int argc, char* argv[])
     udp_param.udp=my_udp;
     udp_param.tst_var=FIFO;
 
-    hThread=CreateThread(NULL,2*2097152,&main_thread,&param,CREATE_SUSPENDED,&thread_id);// stack_size = 4MB
-    if (hThread==NULL) {cout << "thread create error\n"; return 0;}
-
-    udp_param.side_thread=hThread;
-    udp_Thread=CreateThread(NULL,2*2097152,&Udp_Listen,&udp_param,CREATE_SUSPENDED,&thread_id2);// stack_size = 4MB
-    if (udp_Thread==NULL) {cout << "thread create error\n"; return 0;}
+    //hThread=CreateThread(NULL,2*2097152,&main_thread,&param,CREATE_SUSPENDED,&thread_id);// stack_size = 4MB
+    //if (hThread==NULL) {cout << "thread create error\n"; return 0;}
+    thread hThread(main_thread,&param);
+    //udp_param.side_thread=hThread;
+    //udp_Thread=CreateThread(NULL,2*2097152,&Udp_Listen,&udp_param,CREATE_SUSPENDED,&thread_id2);// stack_size = 4MB
+    //if (udp_Thread==NULL) {cout << "thread create error\n"; return 0;}
+    thread udp_Thread(Udp_Listen,&param);
 
 
     cout << "main flow message\n";
-    if (ResumeThread(hThread)==-1) {
-        cout << "Thread resume error \n";
-        return 0;
-    }
+//    if (ResumeThread(hThread)==-1) {
+//        cout << "Thread resume error \n";
+//        return 0;
+//    }
 
-    if (ResumeThread(udp_Thread)==-1) {
-        cout << "Thread resume error \n";
-        return 0;
-    }
+//    if (ResumeThread(udp_Thread)==-1) {
+//        cout << "Thread resume error \n";
+//        return 0;
+//    }
 
         //system("pause");
         char data_to_udp[80];
@@ -293,8 +297,10 @@ int main(int argc, char* argv[])
         }
 
         //system("pause");
-        TerminateThread(hThread,-1);
-        TerminateThread(udp_Thread,-1);
+       std::terminate();
+        // TerminateThread(hThread,-1);
+       // TerminateThread(udp_Thread,-1);
+
     //*******
 //    for (int i=0;i<NODES_SIZE;i++){
 //        delete nodes[i];

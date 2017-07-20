@@ -13,6 +13,7 @@
 #include <my_sort.h>
 #include <QTime>
 #include <mutex>
+#include <unistd.h>
 
 #define DEBUG_OUTPUT
 #define TIME_OUT 50   //in ms
@@ -294,6 +295,11 @@ public:
             return 0;
         }
 
+//        if ((strcmp(search_rec->ip,"159.93.74.138")==0)&(rec_id==0))
+//        {
+//            cout << " IP!= ID@@ " << endl;
+//            print();
+//        }
 //////////////  MESSAGE SEND ////////////////////////////////////////
         node_msg msg_send;
         msg_send.src.src_id=id();
@@ -674,9 +680,16 @@ public:
                 if(Find_node(msg->value->key(),K_items)) {
                     strcpy(answer_item.Value,"");
                     for (int i=0; i<k_size;i++){
-                    strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+
+                    sprintf(k_items_buf,"%d",(K_items[i]).ID);
+                    //strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
+
                     strcat(answer_item.Value,(K_items[i]).ip); strcat(answer_item.Value,";");
-                    strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+
+                    sprintf(k_items_buf,"%d",(K_items[i]).Udp_port);
+                    //strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     }
 
                 answer_item.Key=msg->command;}   // replace here (char *)K_items -> (char *)str="K_items[0],....,K_items[1]"; replace processor
@@ -704,9 +717,14 @@ public:
                 if(fvalue>0) {
                     strcpy(answer_item.Value,"");
                     for (int i=0; i<k_size;i++){
-                    strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    sprintf(k_items_buf,"%d",(K_items[i]).ID);
+                    //strcat(answer_item.Value,itoa((K_items[i]).ID,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     strcat(answer_item.Value,(K_items[i]).ip); strcat(answer_item.Value,";");
-                    strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+
+                    sprintf(k_items_buf,"%d",(K_items[i]).Udp_port);
+                    //strcat(answer_item.Value,itoa((K_items[i]).Udp_port,k_items_buf,10)); strcat(answer_item.Value,";");
+                    strcat(answer_item.Value,k_items_buf); strcat(answer_item.Value,";");
                     }//answer_item.Value=(char *)K_items;
                     answer_item.Key=msg->command;}
                 else if(fvalue<0) {answer_item.Value=value_found;answer_item.Key=msg->value->key(); answer_item.size=value_size;}
@@ -843,7 +861,7 @@ if (from_where == 1){  //from stack
     {
         if (send_time->elapsed()>TIME_OUT) {
             cout << "node_sender timeout, next node \n"; msg_rec.command=-1;return msg_rec;}
-        if (fifo->empty()) {Sleep(1);continue;}
+        if (fifo->empty()) {usleep(1000);continue;}
         fifo_mutex.lock();
         buffer=fifo->get();
         fifo_mutex.unlock();
@@ -865,7 +883,7 @@ if (from_where == 1){  //from stack
 
 else if (from_where==2) {   //from main loop
     //if (fifo->empty()) {msg_rec.command=-1; return msg_rec;}
-    while(fifo->empty()) {Sleep(1);}  //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
+    while(fifo->empty()) {usleep(1000);}  //this_thread::sleep_for(chrono::microseconds(SLEEP_TIME));
     fifo_mutex.lock();
     buffer=fifo->get();
     fifo_mutex.unlock();
