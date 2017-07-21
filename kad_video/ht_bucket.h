@@ -762,7 +762,7 @@ public:
 
     int Find_node(Key v, Item *t){  //get k_size closest nodes from buckets
         int N_nodes=0;
-        int index_list[M];
+        int *index_list=new int[M];
         for (uint8_t i=0; i<M;index_list[i++]=0);
 
         index_list[0]=hash(v,M);

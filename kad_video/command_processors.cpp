@@ -4,7 +4,7 @@ template <class Item, typename Key> int HT<Item,Key>::save_to_disk(char *data, i
     {
         char *filename= new char[80];
         strcpy(filename,"C:\\projects\\dash_palyer\\public\\output\\chunk-stream0-");
-        char num[5];
+        char num[15];
         sprintf(num,"%05i", key);
         strcat(filename,num);
         strcat(filename,".m4s");
